@@ -9,9 +9,10 @@ import UIKit
 
 class TodolistViewController: UITableViewController {
 
-    var todoArray = ["Eggs", "Milk", "Bread", "Meat"]
+    var todoArray = [Item]()
     
-    let userDefault = UserDefaults.standard
+    let filePath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first?.appendingPathComponent("Items.plist")
+    
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -20,9 +21,7 @@ class TodolistViewController: UITableViewController {
         
         title = "To do list"
         
-        if let savedItems = userDefault.array(forKey: "TodoList") as? [String] {
-            todoArray = savedItems
-        }
+        load()
         
     }
 
@@ -36,7 +35,10 @@ class TodolistViewController: UITableViewController {
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell = tableView.dequeueReusableCell(withIdentifier: "TodoItemCell", for: indexPath)
         
-        cell.textLabel?.text = todoArray[indexPath.row]
+        
+        cell.textLabel?.text = todoArray[indexPath.row].title
+        
+        cell.accessoryType = todoArray[indexPath.row].isChecked ? .checkmark : .none
         
         return cell
     }
@@ -45,19 +47,20 @@ class TodolistViewController: UITableViewController {
 
     override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         
-        
         tableView.deselectRow(at: indexPath, animated: true)
         
-        if tableView.cellForRow(at: indexPath)?.accessoryType == .some(.checkmark) {
-            tableView.cellForRow(at: indexPath)?.accessoryType = .none
-        } else {
-            tableView.cellForRow(at: indexPath)?.accessoryType = .checkmark
-        }
+        todoArray[indexPath.row].isChecked = !todoArray[indexPath.row].isChecked
+        
+        save()
+            
+        tableView.reloadData()
     }
     
     @IBAction func addNewItemButtonTapped(_ sender: UIBarButtonItem) {
         
         var textField = UITextField()
+        textField.keyboardAppearance = .light
+        textField.autocapitalizationType = .words
         
         let ac = UIAlertController(title: "Add New Item", message: nil, preferredStyle: .alert)
         
@@ -65,9 +68,12 @@ class TodolistViewController: UITableViewController {
         
         let addAction = UIAlertAction(title: "Add Item", style: .default) { (addNewItem) in
             
-            self.todoArray.append(textField.text!)
+            let item = Item()
+            item.title = textField.text!
             
-            self.userDefault.setValue(self.todoArray, forKey: "TodoList")
+            self.todoArray.append(item)
+            
+            self.save()
             
             self.tableView.reloadData()
         }
@@ -83,6 +89,30 @@ class TodolistViewController: UITableViewController {
     }
     
    
+    //MARK: - SAVE AND LOAD DATA
+    
+    func save() {
+        let encoder = PropertyListEncoder()
+        do{
+            let data = try encoder.encode(self.todoArray)
+            try data.write(to: filePath!)
+        } catch {
+            print("Error encoding the items attay: \(error)")
+        }
+    }
+
+    func load() {
+        if let data = try? Data(contentsOf: filePath!) {
+            let decoder = PropertyListDecoder()
+            
+            do {
+                todoArray = try decoder.decode([Item].self, from: data)
+            } catch {
+                print("Error decpoding the items attay: \(error)")
+            }
+        }
+    }
+    
 }
 
 
